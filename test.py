@@ -9,7 +9,7 @@ def cropOutText(img):
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_OTSU)
     kernel = cv2.getStructuringElement(cv2.MORPH_CROSS,(3,3))
-    dilated = cv2.dilate(thresh,kernel,iterations = 13) # dilate
+    dilated = cv2.dilate(thresh,kernel,iterations = 50) # dilate
     contours, hierarchy = cv2.findContours(dilated,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE) # get contours
 
     # for each contour found, draw a rectangle around it on original image
@@ -18,8 +18,8 @@ def cropOutText(img):
         [x,y,w,h] = cv2.boundingRect(contour)
 
         # discard areas that are too large
-        if h>300 and w>300:
-            continue
+        # if h>300 and w>300:
+        #     continue
 
         # discard areas that are too small
         if h<40 or w<40:
@@ -30,6 +30,7 @@ def cropOutText(img):
 
     # Crop the image
     crop = img[y:y + h, x:x + w]
+    #crop = img
 
     return crop
 
@@ -47,12 +48,16 @@ def showImage(img, name):
     cv2.imshow(name, img)
     return
 
+def saveImage(img, name):
+    cv2.imwrite(name + ".png", img)
+    return
+
 # Main
 if __name__ == '__main__':
     watermark = cv2.imread("wmark.jpg", cv2.IMREAD_GRAYSCALE)
-    watermark = resizeImage(watermark, 20)
+    watermark = resizeImage(watermark, 80)
     watermark = cropOutText(watermark)
-    showImage(watermark, "cropped")
+    saveImage(watermark, "croppedWM")
 
     cv2.waitKey(0)
     cv2.destroyAllWindows()

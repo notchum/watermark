@@ -1,7 +1,8 @@
 import numpy as np
 import cv2, os, argparse
 from imutils import paths
-from matplotlib import pyplot as plt
+
+INVERT = False
 
 def resizeImage(img, scale):
     # resize image
@@ -39,7 +40,7 @@ def cropOutText(img):
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_OTSU)
     kernel = cv2.getStructuringElement(cv2.MORPH_CROSS,(3,3))
-    dilated = cv2.dilate(thresh,kernel,iterations = 13) # dilate
+    dilated = cv2.dilate(thresh,kernel,iterations = 50) # dilate
     contours, hierarchy = cv2.findContours(dilated,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE) # get contours
 
     # for each contour found, draw a rectangle around it on original image
@@ -52,8 +53,8 @@ def cropOutText(img):
         #     continue
 
         # # discard areas that are too small
-        # if h<40 or w<40:
-        #     continue
+        if h<40 or w<40:
+            continue
 
         # draw rectangle around contour on original image
         #cv2.rectangle(img,(x,y),(x+w,y+h),(255,0,255),2)
@@ -71,23 +72,33 @@ ap.add_argument("-i", "--input", required=True,
 	help="path to the input directory of images")
 ap.add_argument("-o", "--output", required=True,
 	help="path to the output directory")
-ap.add_argument("-a", "--alpha", type=float, default=0.50,
+ap.add_argument("-s", "--scale", type=int, default=80,
+	help="scale of input watermark image")
+ap.add_argument("-p", "--position", type=str, default="lower_right",
+	help="position of the watermark on output image(s)")
+ap.add_argument("-a", "--alpha", type=float, default=0.80,
 	help="alpha transparency of the overlay (smaller is more transparent)")
 ap.add_argument("-c", "--correct", type=int, default=1,
 	help="flag used to handle if bug is displayed or not")
+ap.add_argument("-n", "--negate", type=bool, default=False,
+	help="flag used to handle if watermark is inverted or not")
 args = vars(ap.parse_args())
 
 # Main
 if __name__ == '__main__':
     watermark = cv2.imread(args["watermark"], cv2.IMREAD_GRAYSCALE)
-    watermark = resizeImage(watermark, 20)
+    watermark = resizeImage(watermark, args["scale"])
     watermark = cropOutText(watermark)
+
+    INVERT = args["negate"]
+        
     (wH, wW) = watermark.shape[:2]
  
     if args["correct"] > 0:
         watermark = makeWM(watermark)
 
-    cv2.imshow("watermark", watermark)
+    if INVERT:
+        watermark = cv2.bitwise_not(watermark)
 
     # loop over the input images
     for imagePath in paths.list_images(args["input"]):
@@ -102,7 +113,24 @@ if __name__ == '__main__':
         # then add the watermark to the overlay in the bottom-right
         # corner
         overlay = np.zeros((h, w, 4), dtype="uint8")
-        overlay[h - wH - 10:h - 10, w - wW - 10:w - 10] = watermark
+        if args["position"] == "lower_right":
+            overlay[h - wH - 10:h - 10, w - wW - 10:w - 10] = watermark
+        elif args["position"] == "lower_center":
+            overlay[h - wH - 10:h - 10, w//2 - wW//2:w//2 - wW//2 + wW] = watermark
+        elif args["position"] == "lower_left":
+            overlay[h - wH - 10:h - 10, 10:wW + 10] = watermark
+        elif args["position"] == "middle_right":
+            overlay[h//2 - wH//2:h//2 - wH//2 + wH, w - wW - 10:w - 10] = watermark
+        elif args["position"] == "middle_center":
+            overlay[h//2 - wH//2:h//2 - wH//2 + wH, w//2 - wW//2:w//2 - wW//2 + wW] = watermark
+        elif args["position"] == "middle_left":
+            overlay[h//2 - wH//2:h//2 - wH//2 + wH, 10:wW + 10] = watermark
+        elif args["position"] == "upper_right":
+            overlay[10:wH + 10, w - wW - 10:w - 10] = watermark
+        elif args["position"] == "upper_center":
+            overlay[10:wH + 10, w//2 - wW//2:w//2 - wW//2 + wW] = watermark
+        elif args["position"] == "upper_left":
+            overlay[10:wH + 10, 10:wW + 10] = watermark
     
         # blend the two images together using transparent overlays
         output = image.copy()
@@ -113,5 +141,5 @@ if __name__ == '__main__':
         p = os.path.sep.join((args["output"], filename))
         cv2.imwrite(p, output)
 
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
