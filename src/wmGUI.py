@@ -236,11 +236,11 @@ class myGUI():
         if self.rbuttonInitSelection.get() == 1:
             command += " -o "
             command += _output
-            command += " -b 1 "
+            command += " -b 1"
         elif self.rbuttonInitSelection.get() == 2:
             command += " -f "
             command += _filename
-            command += " -b 0 "
+            command += " -b 0"
         
         # Append the watermark file
         if len(_wmark) == 0:
